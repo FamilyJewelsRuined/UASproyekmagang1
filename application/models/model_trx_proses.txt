@@ -1,0 +1,289 @@
+<?php
+class model_trx_proses extends CI_Model {
+
+    public $table = 'TRX_PPA';
+
+    public function __construct(){
+        parent::__construct();
+    }
+
+        function dataMainUntukProses($array) {
+            $this->load->database();
+
+            // Keyword filter
+            $wh = '';
+            if (isset($array['q']) && $array['q'] != '') {
+                $keyword = strtoupper($array['q']);
+                if ($array['field'] == 'ALL') {
+                    $wh = "AND (
+                        UPPER(a.no_ppa) LIKE '%$keyword%' OR
+                        UPPER(b.nama) LIKE '%$keyword%' OR
+                        UPPER(c.nama) LIKE '%$keyword%'
+                    )";
+                } else {
+                    $tblField = $array['field'] == 'NO_PPA' ? "a.no_ppa" : ($array['field'] == 'NAMA_KAPAL' ? "b.nama" : "c.nama");
+                    $wh = " AND UPPER($tblField) LIKE '%$keyword%'";
+                }
+            }
+
+            // Filter tanggal!
+            $whtgl = '';
+            $tglawal  = $array['tw'];
+            $tglakhir = $array['tk'];
+            if ($tglawal != '' && $tglakhir != '') { //kalo tgl awal tdk kosong dan tglakhir tidk kosong
+                $whtgl = " AND a.tanggal BETWEEN to_date('$tglawal','yyyy-mm-dd') AND to_date('$tglakhir','yyyy-mm-dd')";
+            } elseif ($tglawal != '') {
+                $whtgl = " AND a.tanggal >= to_date('$tglawal','yyyy-mm-dd')";
+            } elseif ($tglakhir != '') {
+                $whtgl = " AND a.tanggal <= to_date('$tglakhir','yyyy-mm-dd')";
+            }
+
+            // kenali siapa yang masuk sebagai user!
+            $whuser = '';
+            $user = $this->session->userdata('id_user');
+            $role = $this->session->userdata('group');
+            if ($role == 101) {
+                $whuser = " AND a.agen_id = '$user'";// kalau masuk sebagai agen, jadi filter data berdasarkan a.agen_id.
+            } elseif ($role == 102 || $role == 103) {// kalau masuk sebagai customer, filter datanya berdasarkan a.customer_id
+                $whuser = " AND a.customer_id = '$user'";
+            }
+
+            
+            // Sorting
+            $allowedColumns = ['NO_PPA','TANGGAL','TYPE_BAYAR','TRXKPJK','STATUS_ID','NAMA_KAPAL','NAMA_TONGKANG','JENIS_MUATAN','BERAT_MUATAN','TARIF_USD','PPN','TOTAL_USD','NAMA_CUSTOMER', 'NAMA_AGEN']; //daftar kolom yang boleh dipakai untuk sort (supaya aman).
+            $sort  = in_array($array['sort'], $allowedColumns) ? $array['sort'] : 'TANGGAL'; //kalau kolom yang dipilih user ada di daftar, pakai itu. Kalau tidak, default TANGGAL.
+            $order = strtoupper($array['order']) == 'DESC' ? 'DESC' : 'ASC'; //strttoupper mengubah semua huruf ke caps. kalau user pilih DESC, maka urut menurun, kalau tidak → ASC (menaik).
+
+            if($sort == 'TANGGAL' && $order=='DESC'){
+                $newSort = $sort.' '.$order.', NO_PPA DESC';
+            }elseif($sort == 'TANGGAL' && $order=='ASC'){
+                $newSort = $sort.' '.$order.', NO_PPA ASC';
+            }elseif($sort == 'NO_PPA'){
+                $newSort = $sort.' '.$order;
+            }else{
+                $newSort = $sort.' '.$order.', TANGGAL, NO_PPA';
+            }
+
+            // Pagination
+            $rowsPerPage = intval($array['rows']);
+            $page        = intval($array['page']);
+            $offset      = ($page - 1) * $rowsPerPage;
+
+            // SQL Main
+            $sqlMain = "SELECT a.no_ppa, a.type_bayar, a.tanggal,
+                            CASE WHEN a.tanggal >= to_date('01102019','ddmmyyyy') THEN a.no_ppa END AS cetak,
+                            g.nama AS nama_customer, h.nama AS nama_agen,
+                            b.nama AS nama_kapal, c.nama AS nama_tongkang,
+                            f.nama AS jenis_muatan, a.berat_muatan,
+                            a.isidr, a.trxkpjk,
+                            CASE 
+                                WHEN a.isidr=3 THEN 'DOMESTIK'
+                                WHEN a.isidr=2 THEN 'EXPORT'
+                                ELSE '-'
+                            END AS JENISKIRIM,
+                            case
+                                when a.type_bayar = '1' then 'PRA'
+                                when a.type_bayar = '2' then 'PASCA'
+                            end as TYPEBAYAR,
+                            a.tarif_usd, a.nilai_usd, a.ppn, a.by_admin, a.total_usd,
+                            a.status_id,
+                            i.nama AS pelabuhan_asal,
+                            j.nama AS pelabuhan_tujuan,
+                            a.pelabuhan_tujuan_akhir,
+                            UPPER(a.keterangan) AS keterangan
+                        FROM ppa a
+                        LEFT JOIN mst_kapal b ON a.kapal_id=b.id
+                        LEFT JOIN mst_kapal c ON a.tongkang_id=c.id
+                        LEFT JOIN mst_muatan_jenis f ON a.jenis_muatan_id=f.id
+                        LEFT JOIN mst_customer g ON a.customer_id=g.id
+                        LEFT JOIN mst_agen h ON a.agen_id=h.id
+                        LEFT JOIN mst_pelabuhan i ON a.pelabuhan_id=i.id
+                        LEFT JOIN mst_pelabuhan j ON a.pelabuhan_tujuan_id=j.id
+                        WHERE a.status_id IN (9,0,1)
+                        $whuser $whtgl $wh
+                        ";
+
+            //Total filtered 
+            $sqlTotal = "
+                SELECT COUNT(no_ppa) AS jumlah 
+                FROM (
+                    SELECT a.no_ppa, 
+                        b.nama AS nama_kapal, c.nama AS nama_tongkang
+                    FROM ppa a
+                    LEFT JOIN mst_kapal b ON a.kapal_id=b.id
+                    LEFT JOIN mst_kapal c ON a.tongkang_id=c.id
+                    WHERE a.status_id IN (9,0,1)$whuser $whtgl $wh 
+                )
+            ";
+            $jumlah = $this->db->query($sqlTotal)->row_array();
+            $total = isset($jumlah['JUMLAH']) ? $jumlah['JUMLAH'] : 0;
+
+            // Pagination Oracle
+            $sqlPaged = "
+                SELECT * FROM (
+                    SELECT inner_table.*, ROWNUM rnum FROM (
+                        SELECT * FROM (
+                            $sqlMain
+                            ORDER BY $newSort 
+                        ) ordered_table
+                    ) inner_table
+                    WHERE ROWNUM <= " . ($offset + $rowsPerPage) . "
+                ) WHERE rnum > $offset
+            ";
+
+            // Jalankan query
+            $query = [];
+            try {
+                $query['total'] = $total;
+                $query['rows']  = $this->db->query($sqlPaged)->result_array();
+            } catch (Exception $e) {
+                $query['total'] = 0;
+                $query['rows'] = [];
+            }
+
+            $this->db->close();
+            return $query;
+        }
+    
+
+        //
+        function dataUntukProses($array) {
+            $this->load->database();
+        
+            // kenali siapa yang masuk sebagai user!
+            $whuser = '';
+            $user = $this->session->userdata('id_user');
+            $role = $this->session->userdata('group');
+            if ($role == 101) {
+                // kalau masuk sebagai agen, filter data berdasarkan a.agen_id
+                $whuser = " AND a.agen_id = '$user'";
+            } elseif ($role == 102 || $role == 103) {
+                // kalau masuk sebagai customer, filter data berdasarkan a.customer_id
+                $whuser = " AND a.customer_id = '$user'";
+            }
+        
+            // status filter
+            if ($user == '100') {
+                $filterStatus = "a.status_id IN (9, 0, 1)";
+            } else {
+                $filterStatus = "a.status_id IN (9, 0, 1, 8)";
+            }
+        
+
+            $sqlMain = "
+                SELECT a.no_ppa, a.type_bayar, a.tanggal,
+                    A.ID AS ID, a.no_ppa AS cetak,
+                    g.nama AS nama_customer, h.nama AS nama_agen,
+                    b.nama AS nama_kapal, c.nama AS nama_tongkang,
+                    f.nama AS jenis_muatan, a.berat_muatan,
+                    a.isidr, a.trxkpjk,
+                    CASE 
+                        WHEN a.isidr=3 THEN 'DOMESTIK'
+                        WHEN a.isidr=2 THEN 'EXPORT'
+                        ELSE '-'
+                    END AS JENISKIRIM,
+                    CASE
+                        WHEN a.type_bayar = '1' THEN 'PRA'
+                        WHEN a.type_bayar = '2' THEN 'PASCA'
+                    END as TYPEBAYAR,
+                    a.tarif_usd, a.nilai_usd, a.ppn, a.by_admin, a.total_usd,
+                    a.status_id,
+                    i.nama AS pelabuhan_asal,
+                    j.nama AS pelabuhan_tujuan,
+                    a.pelabuhan_tujuan_akhir,
+                    UPPER(a.keterangan) AS keterangan
+                FROM ppa a
+                LEFT JOIN mst_kapal b ON a.kapal_id=b.id
+                LEFT JOIN mst_kapal c ON a.tongkang_id=c.id
+                LEFT JOIN mst_muatan_jenis f ON a.jenis_muatan_id=f.id
+                LEFT JOIN mst_customer g ON a.customer_id=g.id
+                LEFT JOIN mst_agen h ON a.agen_id=h.id
+                LEFT JOIN mst_pelabuhan i ON a.pelabuhan_id=i.id
+                LEFT JOIN mst_pelabuhan j ON a.pelabuhan_tujuan_id=j.id
+                WHERE $filterStatus $whuser
+            ";
+        
+      
+            $sqlMainWrapped = "SELECT * FROM ($sqlMain) t";
+        
+
+            $allowedColumns = [ 'no_ppa','tanggal','type_bayar','trxkpjk','status_id','nama_kapal','nama_tongkang','jenis_muatan','berat_muatan','tarif_usd','ppn','total_usd','nama_customer'];
+            $sort  = in_array($array['sort'], $allowedColumns) ? $array['sort'] : 'tanggal';
+            $order = strtoupper($array['order']) == 'DESC' ? 'DESC' : 'ASC';
+            
+            // Convert to lowercase for consistency
+            $sort  = strtolower($sort);
+
+            // Build ORDER BY clause
+            if ($sort === 'status_id') {
+                if ($order == 'ASC') {
+                    $statusOrder = "
+                        CASE t.status_id
+                            WHEN 1 THEN 1
+                            WHEN 0 THEN 2
+                            WHEN 9 THEN 3
+                            ELSE 4
+                        END
+                    ";
+                } else {
+                    $statusOrder = "
+                        CASE t.status_id
+                            WHEN 9 THEN 1
+                            WHEN 0 THEN 2
+                            WHEN 1 THEN 3
+                            ELSE 4
+                        END
+                    ";
+                }
+                $orderBy = "ORDER BY $statusOrder, t.no_ppa DESC";
+            } else {
+                // Normal column sorting - only use the sort column and no_ppa
+                $orderBy = "ORDER BY t.$sort $order, t.no_ppa DESC";
+            }
+        
+            // paginasi
+            $rowsPerPage = intval($array['rows']);
+            $page        = intval($array['page']);
+            $offset      = ($page - 1) * $rowsPerPage;
+        
+            // Pagination mysql
+            $sqlPaged = "
+    $sqlMainWrapped
+    $orderBy
+    LIMIT $offset, $rowsPerPage
+";
+
+
+        
+            // jalankan query
+            $query = [];
+            try {
+                $query['rows']  = $this->db->query($sqlPaged)->result_array();
+                $query['total'] = count($query['rows']);
+            } catch (Exception $e) {
+                $query['total'] = 0;
+                $query['rows'] = [];
+            }
+        
+            $this->db->close();
+            return $query;
+        }
+//
+
+        function getStatus($id) {
+            $this->load->database(); // pastikan database diload
+            $this->db->select('STATUS_ID');
+            $this->db->from('TRX_PPA');
+            $this->db->where('ID', $id);
+            $row = $this->db->get()->row();
+            return $row ? $row->STATUS_ID : null;
+        }
+        
+
+        function updateStatus($id, $newStatus) {
+            $this->load->database(); // pastikan database diload
+            return $this->db->where('ID', $id)->update('TRX_PPA', ['STATUS_ID' => $newStatus]);
+        }
+        
+    }
+

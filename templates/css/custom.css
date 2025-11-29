@@ -1,0 +1,301 @@
+
+:root{
+  --brand-blue:#232327;
+  --brand-orange:#FF7315;
+}
+body, .content, .filter-bar, table{ background:#f5f7fb; font-family: Barlow,"Arial Narrow", sans-serif; font-size:14px;}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #2981b9 #f5f7fb;
+}
+
+/* Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+    width: 5px;
+}
+
+*::-webkit-scrollbar-track {
+/*background: #2981b99c;*/
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: #2981b9;
+    border-radius: 0px;
+    border: 0px none #d41111;
+}
+
+.hr-title{margin-bottom: 0px; color: #ff7315; opacity: 1; border-width:1px;}
+
+#contentWrapper {
+    max-height: calc(100vh - 105px); 
+    overflow-y: auto;      
+}
+  
+  
+  
+.topbar{
+  background:var(--brand-blue);
+  color:#fff;
+  border-bottom: 4px solid #2981B9;
+}
+.topbar .brand{ font-weight:700; letter-spacing:.2px; }
+.topbar .subtitle{ font-size:.8rem; opacity:.8; font-style: italic;}
+
+.topbar a img {
+  display: inline-block;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden; /* cegah scrollbar di body */
+}
+
+#mainContentD {
+  position: absolute;
+  top: 60px;   /* tinggi navbar/header kamu */
+  left: 220px; /* lebar sidebar, kalau sidebar fixed */
+  right: 0;
+  bottom: 0;
+  overflow-y: auto; /* biar scroll di content aja */
+  padding: 20px;
+}
+#mainContent {
+  position: absolute;
+  top: 0px;   /* tinggi navbar/header kamu */
+  right: 0;
+  bottom: 0;
+  overflow-y: auto; /* biar scroll di content aja */
+  padding: 5px;
+}
+.sidebar{
+  width:220px;
+  background:#343b4a;
+  color:#cfd7e3;
+  min-height:calc(100vh - 60px);
+  left:0; top:50px; bottom:0;
+  overflow-y:auto;
+  z-index: 10;
+  position: fixed;
+}
+/* isi gap 992, aneh cok */
+@media (width : 992px) {
+  #btnSidebar {
+    display: block !important;      
+  }
+}
+
+
+.sidebar .menu-title {
+  color: #fff;
+  font-size: .8rem;
+  text-transform: uppercase;
+  padding: 12px 18px;
+  background-color: #16202c;;
+  border-left: 3px solid #16202c;
+}
+.sb-m{
+  margin-left : 15px; 
+}
+@media (max-width: 992px) {
+  .menu-title {
+    display: none;
+  }
+}
+
+.sidebar a{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; color:#cfd7e3; text-decoration:none; border-left:3px solid transparent;
+}
+.sidebar a:hover{ background:#1b2330; color:#fff; }
+.sidebar a.active{ background:#16202c; color:#fff; border-left-color:var(--brand-orange); }
+
+
+.content{
+  margin-left:220px; 
+  /* padding:16px; 
+  padding-bottom:0px;
+  margin-top:50px; */
+}
+
+.page-title{
+  display:flex; 
+  align-items:center; 
+  gap:12px; 
+  /* color:var(--brand-orange); */
+  color: #0aa2e3;
+  font-weight:800; 
+  margin: 8px 0 14px 0;
+  
+  /*position: sticky;   
+  z-index: 1020;*/
+}
+
+.filter-bar .form-select, .filter-bar .form-control{ height:36px; font-size:.9rem; }
+
+table.dataTable td, table.dataTable th{ white-space:nowrap; }
+.dt-buttons{ gap:8px; }
+.badge-link{ text-decoration:none; font-weight:500; }
+
+@media (max-width: 992px){
+  .sidebar{ transform:translateX(-100%); transition:transform .25s ease; }
+  .sidebar.show{ transform:translateX(0); }
+  .content{ margin-left:0; }
+}
+
+.dataTables_info {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.dataTables_paginate {
+  display: inline-block;
+}
+
+.bottom-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+
+/* Flexbox layout dashboard */
+.dashboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: flex-start;
+}
+
+.dashItem {
+  flex: 1 1 240px; /* minimal 240px, bisa melebar */
+  max-width: 330px;
+}
+
+/* Mobile: setiap item full width */
+@media screen and (max-width: 600px) {
+  .dashItem {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
+/* ---- style lama tetap sama ---- */
+.dashHead {
+  line-height: 35px;
+  margin: 20px 0 0;
+  padding: 1px 21px;
+  background: #343b4a;
+  border: 1px solid #343b4a;
+  /* border-top: 1px solid #90CAF9; */
+  font-size: 16px;
+  color: #2981b9;
+  border-radius: 5px 5px 0px 0px;
+}      
+
+.dashautoHeight {
+  height: auto;
+}
+
+.dashWidget {
+  background: #e6f9ff; /* sama seperti table lama */
+  border: 1px solid #343b4a;
+  border-top: none;
+  padding: 4px;
+  height: 100px;
+  margin-bottom: 20px;
+  overflow: auto;
+  border-radius: 0px 0px 5px 5px;
+}
+
+.notif-dash{
+    background: #E6F9FF; /* sama persis warna widget sebelumnya */
+    display:block; 
+    padding: 0px;
+}
+
+.notif-dash ul{
+    margin:13px;
+    margin-bottom:0px;
+    padding:0px;
+    list-style:none;
+}
+.notif-dash h3, .notif-dash h2{
+    margin:0px;
+    color: #0067A8;
+}
+.notif-dash h2{font-size: 15px; font-weight:normal;}
+.label{
+    border-radius: 3px 3px 3px 3px;
+    color: #FFFFFF;
+    font-size: 9.75px;
+    font-weight: bold;
+    padding: 1px 3px;
+    text-transform: uppercase;
+    width:auto;
+    display:inline;
+}
+
+
+.form-chps {
+	width: 100%;
+}
+
+/* kalau layar >= 992px → center */
+@media (max-width: 992px) {
+	.form-chps {
+		margin-left: auto;
+		margin-right: auto; /* efek sama dengan mx-auto */
+	}
+}
+
+.btn-custom {
+	font-size: 1rem;   /* default bootstrap 1rem, ini agak kecil */
+	padding: 0.4rem 0.9rem; 
+}
+
+
+.loading-cust{
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.6);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.abu-9{
+  color: #999;
+}
+.card-box {
+  background-color: #fff;
+  padding: 1.5rem;
+  -webkit-box-shadow: 0 .75rem 6rem rgba(56,65,74,.03);
+  box-shadow: 0 .75rem 6rem rgba(56,65,74,.03);
+  /*margin-bottom: 24px;*/
+  border-radius: .25rem;
+}
+
+/* Bikin readonly terlihat sama seperti disabled */
+input[readonly].disabled-style {
+    background-color: #f8f9fa; /* sama dengan .form-control:disabled */
+    opacity: 1;                /* biar teks tidak terlalu pudar */
+   
+}
+
+input.form-control,
+textarea.form-control {
+  text-transform: uppercase;
+}
+
+input.form-control::placeholder,
+textarea.form-control::placeholder {
+  text-transform: none;
+  color: #999;
+  opacity: 1;
+}
+

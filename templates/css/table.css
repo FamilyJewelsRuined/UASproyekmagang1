@@ -1,0 +1,10 @@
+/* Content / Table */
+.content { margin-left: 220px; padding: 16px; margin-top: 50px; padding-bottom: 0; }
+
+.page-title { display: flex; align-items: center; gap: 12px; color: var(--brand-orange); font-weight: 700; margin: 8px 0 16px; }
+
+.filter-bar .form-select, .filter-bar .form-control { height: 36px; font-size: .9rem; }
+
+table.dataTable td, table.dataTable th { white-space: nowrap; }
+.dt-buttons { gap: 8px; }
+.badge-link { text-decoration: none; font-weight: 500; }

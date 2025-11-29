@@ -1,0 +1,208 @@
+<?php 
+class Ppa_proses extends MY_Controller {
+    
+    public function __construct(){
+        parent::__construct();
+        $this->load->database();
+        $this->urlaccess = get_class($this);
+        if($this->session->userdata('group')!='100'){
+            $this->setAccessRole();
+        }
+        $this->load->model('Model_trx_proses', 'model_trx_proses');
+    }
+
+    function index(){
+        // Button visibility logic moved from view to controller
+        $levelid = $this->session->userdata('levelid');
+        $modul = $this->session->userdata('modul');
+
+        $modulAllowed = in_array($modul, [1, 2, 7, 8]);
+        $levelAllowed = in_array($levelid, [4, 2]);
+        $isEnabled = $modulAllowed && $levelAllowed;
+        
+        $data['showApproveButton'] = $isEnabled;
+        
+        $this->load->view('view_ppa_approve', $data); 
+    }
+
+    function getData() {
+        error_reporting(E_ALL & ~E_NOTICE);
+
+        // Ambil parameter dasar
+        $draw   = intval($this->input->post("draw"));
+        $start  = intval($this->input->post("start"));
+        $length = intval($this->input->post("length"));
+
+        
+        // Sorting langsung dari JS
+        $sort     = $this->input->post("orderColumn") ? $this->input->post("orderColumn") : 'TANGGAL';
+        $orderDir = $this->input->post("orderDir") ? $this->input->post("orderDir") : 'desc';
+
+        // Filter tanggal & field filter
+        $tw    = $this->input->post("tw") ? $this->input->post("tw") : '';
+        $tk    = $this->input->post("tk") ? $this->input->post("tk") : '';
+        
+        $search = $this->input->post("filterQuery") ? $this->input->post("filterQuery") : '';
+        $field  = $this->input->post("filterField") ? $this->input->post("filterField") : 'ALL';
+        // Hitung page untuk model
+        $page = intval($start / $length) + 1;
+
+        // Parameter ke model
+        $params = array(
+            'q'     => $search,
+            'field' => $field,
+            'tw'    => $tw,
+            'tk'    => $tk,
+            'sort'  => $sort,
+            'order' => $orderDir,
+            'rows'  => $length,
+            'page'  => $page
+        );
+
+        // Panggil model
+        $result = $this->model_trx_proses->dataMainUntukProses($params);
+
+        // Kirim hasil ke DataTables
+        echo json_encode(array(
+            "draw"            => $draw,
+            "recordsTotal"    => $result['total'],
+            "recordsFiltered" => $result['total'],
+            "data"            => $result['rows']
+        ));
+    }
+
+    function getDataUntukProses() {
+        error_reporting(E_ALL & ~E_NOTICE);
+
+        // Ambil parameter dasar
+        $draw   = intval($this->input->post("draw"));
+        $start  = intval($this->input->post("start"));
+        $length = intval($this->input->post("length"));
+
+        
+        // Sorting langsung dari JS
+        $sort     = $this->input->post("orderColumn") ? $this->input->post("orderColumn") : 'TANGGAL';
+        $orderDir = $this->input->post("orderDir") ? $this->input->post("orderDir") : 'desc';
+
+        
+        $page = intval($start / $length) + 1;
+
+        // Parameter ke model
+        $params = array(
+            'sort'  => $sort,
+            'order' => $orderDir,
+            'rows'  => $length,
+            'page'  => $page
+        );
+
+        $result = $this->model_trx_proses->dataUntukProses($params);
+        
+//segregasi terhadap status 8 
+        function jauhiStatusDelapan($row) {
+            return !isset($row['STATUS_ID']) || $row['STATUS_ID'] != 8;
+        }
+        
+        $filteredRows = array_values(array_filter($result['rows'], 'jauhiStatusDelapan'));
+        //
+
+
+        // tampilan tombol berdasarkan diubah dari view ke controller
+        $levelid = $this->session->userdata('levelid');
+        $modul = $this->session->userdata('modul');
+        $group = $this->session->userdata('group');
+
+        $modulAllowed = in_array($modul, [1, 2, 7, 8]);
+        $levelAllowed = in_array($levelid, [4, 2]);
+        $isEnabled = $modulAllowed && $levelAllowed;
+        $bisaApprove = ($group == 100) || $isEnabled;
+
+        foreach ($filteredRows as &$row) {
+            $row['STATUS_TEXT'] = $this->getStatusName($row['STATUS_ID']);
+
+            $row['showKembalikanButton'] = $bisaApprove && ($row['STATUS_ID'] == 0 || $row['STATUS_ID'] == 9);
+            $row['showTerimaButton'] = $bisaApprove && ($row['STATUS_ID'] == 9);
+            $row['showApproveButton'] = $bisaApprove && ($row['STATUS_ID'] == 0);
+        }        
+
+        // Kirim hasil ke DataTables
+        echo json_encode(array(
+            "draw"            => $draw,
+            "recordsTotal"    => count($filteredRows),
+            "recordsFiltered" => count($filteredRows),
+            "data"            => $filteredRows
+        ));
+    }
+
+
+    //
+    public function getStatusName($id) {
+        $map = [
+            0 => '<b>[0] Diproses</b>',
+            1 => '<b>[1] Approved</b>',
+            9 => '<b>[9] Diajukan</b>'
+        ];
+        return isset($map[$id]) ? $map[$id] : 'Tidak Diketahui';
+    }    
+//
+
+function kembalikan($id) {
+    $status = $this->model_trx_proses->getStatus($id);
+
+    if ($status == 0) {
+        $ok = $this->model_trx_proses->updateStatus($id, 8);
+        echo json_encode(['success' => $ok, 'msg' => $ok ? "Dikembalikan ke $status" : "Gagal update"]);
+        return;
+    }
+
+    if ($status == 1) {
+        $ok = $this->model_trx_proses->updateStatus($id, 0);
+        echo json_encode(['success' => $ok, 'msg' => $ok ? "Dikembalikan ke $status" : "Gagal rollback"]);
+        return;
+    }
+
+    echo json_encode(['success' => false, 'msg' => "Status sekarang $status"]);
+}
+
+    
+    
+    function terima($id) {
+        $status = $this->model_trx_proses->getStatus($id);
+        if ($status != 9) {
+            echo json_encode(['success' => false, 'msg' => "Status sudah berubah(section terima). Sekarang status: $status"]);
+            return;
+        }
+        $ok = $this->model_trx_proses->updateStatus($id, 0);
+        echo json_encode(['success' => $ok, 'msg' => $ok ? "Berhasil diterima" : "Gagal update"]);
+    }
+    
+    function approve($id) {
+        $status = $this->model_trx_proses->getStatus($id);
+        if ($status == 1) {
+            echo json_encode(['success' => false, 'msg' => "Status sudah berubah(section approve). Sekarang status: $status"]);
+            return;
+        }
+        $ok = $this->model_trx_proses->updateStatus($id, 1);
+        echo json_encode(['success' => $ok, 'msg' => $ok ? "Berhasil approve" : "Gagal update"]);
+    }
+    
+//wtf
+
+/*function detail($id){
+    $this->load->model('model_trx_ppa', 'trxppa');
+
+    $tanggal = date('d-m-Y'); 
+    $sql = "SELECT COALESCE(NULLIF(kurs_pajak, 0), kurs_estimasi, 0) AS TRXKPJK 
+            FROM trx_kurs 
+            WHERE tanggal = TO_DATE('$tanggal','dd-mm-yyyy')";   
+
+    $row = $this->db->query($sql)->row_array();    
+    $trxkpjk = isset($row['TRXKPJK']) ? $row['TRXKPJK'] : 0;
+
+    
+    $data['trxPpa'] = $this->trxppa->getById($id);
+    $data['trxkpjk'] = $trxkpjk;
+    $this->load->view('permohonan/view_permohonan', $data);
+    
+}*/
+
+}

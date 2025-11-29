@@ -1,0 +1,1155 @@
+<script>        
+    $(function () {
+        if ($('#ppaForm').data('ppa-init')) return;
+        $('#ppaForm').data('ppa-init', true);
+
+
+        const PPA_FORM_URL = "<?= base_url('permohonan'); ?>"; 
+        function reloadForm() {
+            const add = (window.parent && typeof window.parent.addTab === "function")
+                        ? window.parent.addTab
+                        : (typeof addTab === "function" ? addTab : null);
+            if (add) {
+                add(PPA_FORM_URL);
+            } else if (window.frameElement) {
+                window.location.replace(PPA_FORM_URL);
+            } else {
+                window.location.assign(PPA_FORM_URL);
+            }
+        }
+     
+
+        $(function() {
+            let trxkpjk = <?= json_encode($trxkpjk) ?>;
+            trxkpjk = parseFloat(trxkpjk) || 0;
+            var idrCheck = "<?= @$trxPpa['result']['ISIDR']?>";
+
+            if (trxkpjk > 0) {
+                
+                $('input[name="TRXKPJK"]').val(trxkpjk.toLocaleString("en-US"));
+                $('#ISIDR option[value="2"]').prop('disabled', false);   
+                
+                if(idrCheck == 2){
+                    $("#toast-msg").html(`<i class="fa-solid fa-circle-exclamation"></i>
+                        Koreksi permohonan dengan tarif Ekspor akan dihitung ulang sesuai Kurs Tanggal Permohonan Hari ini`);                
+                    $("#liveToast")
+                    .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                    .addClass("bg-warning");
+                    new bootstrap.Toast(toastEl, { autohide: true, delay: 4000 }).show();
+                }
+            } else {
+                $('input[name="TRXKPJK"]').val("0");
+                $('#ISIDR option[value="2"]').prop('disabled', true);
+                $('#ISIDR').val("3").trigger("change"); 
+                
+                if(idrCheck == 3){
+                    $("#toast-msg").html(`<i class="fa-solid fa-circle-exclamation"></i>
+                        Data kurs hari ini belum terbit, anda hanya bisa melakukan <b>Koreksi Permohonan Domestik</b>`);
+                }else if(idrCheck == 2){
+                    $("#toast-msg").html(`<i class="fa-solid fa-circle-exclamation"></i>
+                        Data kurs hari ini belum terbit, koreksi akan dihitung dengan  <b>Tarif Domestik</b>
+                        <br>Jika tetap Menggunakan Ekspor, mohon tunggu hingga <b>Kurs Diterbitkam</b>`);
+                }else{
+                    $("#toast-msg").html(`<i class="fa-solid fa-circle-exclamation"></i>
+                        Data kurs hari ini belum terbit, anda hanya bisa mengajukan <b>Permohonan Domestik</b>`);
+                }
+                $("#liveToast")
+                .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                .addClass("bg-warning");
+                new bootstrap.Toast(toastEl, { autohide: true, delay: 4000 }).show();
+            }
+        });
+
+//PKK START
+  // Inisialisasi select2 untuk NOMOR_PKK_TUGBOAT
+        $('#NOMOR_PKK_TUGBOAT').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nomor PKK Kapal',
+            allowClear: true,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/pkkTugboatSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term };
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (row) {
+                            return {
+                                id: row.NOMOR_PKK,
+                                text: row.NOMOR_PKK,
+                                pkkKapalNama: row.KAPAL_NAMA,
+                                pkkKapalGt: row.GRT,
+                                pkkKapalLoa: row.LOA,
+                                pkkKapalAsalPelabuhan: row.ASAL_PELABUHAN,
+                                pkkKapalTujuanPelabuhan: row.TUJUAN_PELABUHAN
+                            };
+                        })
+                    };
+                }
+            }
+        });
+
+        // Ketika PKK dipilih
+        $('#NOMOR_PKK_TUGBOAT').on('select2:select', function (e) {
+            var data = e.params.data;
+
+            // Set nilai GT kapal
+            $('#GT_KAPAL').val(data.pkkKapalGt); 
+            $('#LOA_KAPAL').val(data.pkkKapalLoa); 
+            $('#PKK_KAPAL_NAMA').val(data.pkkKapalNama);   
+            $('#PKK_KAPAL_ASAL_PELABUHAN').val(data.pkkKapalAsalPelabuhan);   
+            $('#PKK_KAPAL_TUJUAN_PELABUHAN').val(data.pkkKapalTujuanPelabuhan);   
+
+            var kapalNama                = data.pkkKapalNama;
+            var pkkKapalAsalPelabuhan    = data.pkkKapalAsalPelabuhan;
+            var pkkKapalTujuanPelabuhan  = data.pkkKapalTujuanPelabuhan;
+            
+            var kapalSelect = $('#KAPAL_ID');
+            if (kapalSelect.find("option[value='" + kapalNama + "']").length === 0) { 
+                var newOption = new Option(kapalNama, kapalNama, true, true);
+                kapalSelect.append(newOption).trigger('change');
+            } else {
+                kapalSelect.val(kapalNama).trigger('change');
+            }
+            
+            var asalPelabuhanSelect = $('#PELABUHAN_ID');
+            if (asalPelabuhanSelect.find("option[value='" + pkkKapalAsalPelabuhan + "']").length === 0) { 
+                var newOption = new Option(pkkKapalAsalPelabuhan, pkkKapalAsalPelabuhan, true, true);
+                asalPelabuhanSelect.append(newOption).trigger('change');
+            } else {
+                asalPelabuhanSelect.val(pkkKapalAsalPelabuhan).trigger('change');
+            }
+            
+            var tujuanPelabuhanSelect = $('#PELABUHAN_TUJUAN_ID');
+            if (tujuanPelabuhanSelect.find("option[value='" + pkkKapalTujuanPelabuhan + "']").length === 0) { 
+                var newOption = new Option(pkkKapalTujuanPelabuhan, pkkKapalTujuanPelabuhan, true, true);
+                tujuanPelabuhanSelect.append(newOption).trigger('change');
+            } else {
+                tujuanPelabuhanSelect.val(pkkKapalAsalPelabuhan).trigger('change');
+            }
+
+            kapalSelect.prop('disabled', true);
+            asalPelabuhanSelect.prop('disabled', true);
+            tujuanPelabuhanSelect.prop('disabled', true);
+            
+            
+        });
+        $('#NOMOR_PKK_TUGBOAT').on('select2:clear', function (e) {
+            // Reset semua inputan terkait PKK
+            $('#GT_KAPAL').val('');
+            $('#PKK_KAPAL_NAMA').val('');
+            $('#PKK_KAPAL_ASAL_PELABUHAN').val('');
+            $('#PKK_KAPAL_TUJUAN_PELABUHAN').val('');
+
+            $('#KAPAL_ID').val(null).trigger('change').prop('disabled', false);
+            $('#PELABUHAN_ID').val(null).trigger('change').prop('disabled', false);
+            $('#PELABUHAN_TUJUAN_ID').val(null).trigger('change').prop('disabled', false);
+        });
+     
+        $('#NOMOR_PKK_TONGKANG').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nomor PKK untuk Tongkang',
+            allowClear: true,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/pkkTongkangSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term };
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (row) {
+                            return {
+                                id: row.NOMOR_PKK,
+                                text: row.NOMOR_PKK,
+                                pkkTongkangNama: row.KAPAL_NAMA,
+                                pkkTongkangGt: row.GRT
+                            };
+                        })
+                    };
+                }
+            }
+        });
+            // Ketika PKK dipilih
+        $('#NOMOR_PKK_TONGKANG').on('select2:select', function (e) {
+            var data = e.params.data;
+
+            // Set nilai GT kapal
+            $('#GT_TONGKANG').val(data.pkkTongkangGt);
+            $('#LOA_TONGAKANG').val(data.pkkTongkangLoa); 
+            $('#PKK_TONGKANG_NAMA').val(data.pkkTongkangNama);  
+
+            var tongkangNama = data.pkkTongkangNama;
+
+            var tongkangSelect = $('#TONGKANG_ID');
+            if (tongkangSelect.find("option[value='" + tongkangNama + "']").length === 0) { 
+                var newOption = new Option(tongkangNama, tongkangNama, true, true);
+                tongkangSelect.append(newOption).trigger('change');
+            } else {
+                tongkangSelect.val(tongkangNama).trigger('change');
+            }
+
+            tongkangSelect.prop('disabled', true); 
+        });
+            
+        $('#NOMOR_PKK_TONGKANG').on('select2:clear', function (e) {
+            // Reset semua inputan terkait PKK
+            $('#GT_TONGKANG').val('');
+            $('#LOA_TONGKANG').val('');
+            $('#PKK_TONGKANG_NAMA').val('');
+
+            $('#TONGKANG_ID').val(null).trigger('change').prop('disabled', false); 
+        });
+
+
+ //END OF PKK
+
+ //start kapal       
+        $('#KAPAL_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nama kapal',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/kapalSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (row) {
+                            return { 
+                                id: row.ID, 
+                                text: row.NAMA, 
+                                gt: row.GT_KAPAL
+                            }; 
+                        })
+                    };
+                }
+            }
+        });
+
+        $('#KAPAL_ID').on('select2:select', function (e) {
+            var data = e.params.data;
+            $('#GT_KAPAL').val(data.gt);
+        });
+
+        // $('#KAPAL_ID').on('select2:clear', function () {
+        //     $('#GT_KAPAL').val(''); 
+        // });
+    
+///end kapal
+
+        $('#TONGKANG_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nama tongkang',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/tongkangSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (row) {
+                            return { 
+                                id: row.ID, 
+                                text: row.NAMA, 
+                                gt: row.GT_TONGKANG
+                            }; 
+                        })
+                    };
+                }
+            }
+        });
+
+        $('#TONGKANG_ID').on('select2:select', function (e) {
+            var data = e.params.data;
+            $('#GT_TONGKANG').val(data.gt);
+        });
+
+///end tongkang
+        $('#PELABUHAN_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nama pelabuhan asal',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/pelabuhanSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                    results: data.map(function (row) {
+                        return { id: row.ID, text: row.NAMA }; 
+                    })
+                    };
+                }
+            }
+        });
+
+        $('#PELABUHAN_TUJUAN_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nama pelabuhan tujuan',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/pelabuhanSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                    results: data.map(function (row) {
+                        return { id: row.ID, text: row.NAMA }; 
+                    })
+                    };
+                }
+            }
+        });
+
+        $('#SURVEYOR_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nama surveyor',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/surveyorSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                    results: data.map(function (row) {
+                        return { id: row.ID, text: row.NAMA }; 
+                    })
+                    };
+                }
+            }
+        });
+
+        $('#TANGGAL_DRAFT').datepicker({
+            format: 'dd/mm/yyyy',
+            autoclose: true,
+            todayHighlight: true,
+            orientation: 'bottom auto'
+        });
+
+        $('#TANGGAL_LEWAT_INPUT').datepicker({
+            format: 'dd/mm/yyyy',
+            autoclose: true,
+            todayHighlight: true,
+            orientation: 'bottom auto'
+        });
+
+    window.simpan = function(type) {
+    $.ajax({
+        url: '<?= base_url("permohonan/simpan") ?>',
+        type: 'POST',
+        data: { type: type },
+        dataType: 'json',
+        success: function(response) {
+            console.log('Success:', response);
+        },
+        error: function(xhr) {
+            console.error('Error:', xhr.responseText);
+        }
+    });
+};
+
+        function maskTimeInput(event) {
+            let input = event.target;
+            let value = input.value.replace(/[^\d]/g, ''); 
+            let maskedValue = '';
+
+            if (value.length === 1 && value <= 2) {
+                maskedValue = value;
+            }else if (value.length === 1 && value > 2) {
+                maskedValue = '0' + value;
+            } else if (value.length === 2) {
+                maskedValue = value;
+            } else if (value.length > 2) {
+                let hour = parseInt(value.substring(0, 2), 10);
+                if (hour >= 24) {
+                    hour = 23; // Maksimal jam adalah 23
+                }
+                maskedValue = (hour < 10 ? '0' + hour : hour) + ':' + value.substring(2, 4); 
+            }
+            if (value.length >= 3 && value.length < 5) {
+                let minutes = value.substring(2, 4);
+                if (parseInt(minutes, 10) >= 60) {
+                    minutes = '59';
+                }
+                maskedValue = maskedValue.substring(0, 3) + minutes;
+            }
+            input.value = maskedValue;
+
+            if (maskedValue.length > 5) {
+                input.value = maskedValue.substring(0, 5);
+            }
+
+            if (maskedValue.length >= 5) {
+                let hour = parseInt(maskedValue.substring(0, 2), 10);
+                let minute = parseInt(maskedValue.substring(3, 5), 10);
+
+                if (hour > 23) {
+                    maskedValue = '23:';
+                    input.value = maskedValue;
+                }
+                if (minute > 59) {
+                    maskedValue = maskedValue.substring(0, 3) + '59';
+                    input.value = maskedValue;
+                }
+            }
+        }
+        document.getElementById('JAM_LEWAT_INPUT').addEventListener('input', maskTimeInput);
+
+        $('#SIFAT_KUNJUNGAN').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: "RUTIN",
+            allowClear: false,
+            minimumResultsForSearch: Infinity
+        });
+
+        $('#ISIDR').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: "Pilih Tujuan Akhir: Domestik / Export",
+            allowClear: false,
+            minimumResultsForSearch: Infinity
+        });
+
+        $('#ISIDR').on('change', function () {
+            updateTarif();
+            toggleRequiredInput();
+        });
+        
+        function updateLabel() {
+            let jenisPengiriman = $('#ISIDR').val();
+            if (jenisPengiriman == "2") {
+                $('#label-tarif').text("Tarif USD");
+            } else if (jenisPengiriman == "3") {
+                $('#label-tarif').text("Tarif IDR");
+            } else {
+                $('#label-tarif').text("Tarif USD");
+            }
+        }
+
+        function toggleRequiredInput() {
+            let jenisPengiriman = $('#ISIDR').val();
+            let input = $('#PELABUHAN_TUJUAN_AKHIR');
+            let star = $('#wajibTujuanAkhir');
+
+            if (jenisPengiriman == "2") {
+                $('#label-tarif').text("Tarif USD");
+                input.attr('required', true);  // Jadikan required
+                star.show();
+            } else if (jenisPengiriman == "3") {
+                $('#label-tarif').text("Tarif IDR");
+                input.removeAttr('required');  // Hapus required
+                star.hide();
+            }
+        }
+
+        //S MEAN OF MEANS SETTING INPUT DAN VALIDASI   
+        const meanInput = document.getElementById('MEAN_OF_MEANS');
+        const toastEl = document.getElementById("liveToast");
+
+        meanInput.addEventListener('input', function(e) {
+            let val = e.target.value;
+
+            val = val.replace(/[^0-9.]/g, '');
+
+            let parts = val.split('.');
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts[1];
+            }
+            e.target.value = val;
+        });
+
+        meanInput.addEventListener('blur', function(e) {
+            let val = e.target.value;
+
+            if (val === "" || parseFloat(val) === 0 || parseFloat(val) >= 20) {
+                let msg = "Mean of Means belum diisi atau melebihi batas yang ditentukan.";
+                $("#toast-msg").html(`<i class="fa-solid fa-circle-radiation"></i> ${msg}`);
+                $("#liveToast")
+                    .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                    .addClass("bg-danger");
+                new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 }).show();
+
+                e.target.value = ""; // reset input
+                e.target.focus();
+            }
+        });
+
+        $("form").on("submit", function(e) {
+            let val = parseFloat(meanInput.value);
+
+            if (isNaN(val) || val >= 20) {
+                e.preventDefault();
+                let msg = "Mean of Means belum diisi atau melebihi batas yang ditentukan.";
+                $("#toast-msg").html(`<i class="fa-solid fa-circle-radiation"></i> ${msg}`);
+                $("#liveToast")
+                    .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                    .addClass("bg-danger");
+                new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 }).show();
+                meanInput.focus();
+            }
+        });
+        //E MEAN OF MEANS SETTING INPUT DAN VALIDASI  
+
+        $('#CUSTOMER_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Ketikkan nama customer',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 3,
+            ajax: {
+                url: '<?php echo base_url('permohonan/customerSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (row) {
+                            return { 
+                                id: row.ID, 
+                                text: row.NAMA, 
+                                kode: row.KODE,
+                                type: row.TYPE_BAYAR,
+                                npwp: row.NPWP,
+                                alamat: row.ALAMAT_NPWP,
+                                PPN: row.PPN_PERSEN,
+                            }; 
+                        })
+                    };
+                }
+            }
+        });
+
+        $('#CUSTOMER_ID').on('select2:select', function (e) {
+            var data = e.params.data;
+            $('#KODE').val(data.kode);
+            $('#NPWP').val(data.npwp);
+            $('#ALAMAT_NPWP').val(data.alamat);
+            $('#PPN_PERSEN').val(data.PPN);
+            // mapping type bayar
+            var typeMap = {
+                1: "PRA BAYAR",
+                2: "PASCA BAYAR"
+            };
+            $('#TYPE_BAYAR').val(data.type);
+            $('#TYPE_BAYAR_LABEL').val(typeMap[data.type] || "");
+            hitungBiaya();
+        });
+
+        var customerId = "<?= @$trxPpa['result']['CUSTOMER_ID']?>"; 
+        if (customerId) {
+            $.ajax({
+                url: "<?php echo base_url('permohonan/customerGetById');?>", 
+                type: "GET",
+                data: { id: customerId },
+                dataType: "json",
+                success: function(row) {
+                    if (row) {
+                        var option = new Option(row.NAMA, row.ID, true, true);
+                        $('#CUSTOMER_ID').append(option).trigger('change');
+                        $('#KODE').val(row.KODE);
+                        $('#NPWP').val(row.NPWP);
+                        var typeMap = {
+                            1: "PRA BAYAR",
+                            2: "PASCA BAYAR"
+                        };
+                        $('#TYPE_BAYAR').val(row.TYPE_BAYAR);
+                        $('#TYPE_BAYAR_LABEL').val(typeMap[row.TYPE_BAYAR] || "");
+                        $('#PPN_PERSEN').val(row.PPN_PERSEN);
+                        $('#ALAMAT_NPWP').val(row.ALAMAT_NPWP);
+                        hitungBiaya();
+                    }
+                }
+            });
+        }
+
+        $('#JENIS_MUATAN_ID').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Pilih jenis muatan',
+            allowClear: false,
+            width: '100%',
+            minimumInputLength: 0,
+            ajax: {
+                url: '<?php echo base_url('permohonan/muatanSearch');?>',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return { q: params.term }; 
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (row) {
+                            return { 
+                                id: row.ID, 
+                                text: row.NAMA, 
+                                tarif: row.TARIF,
+                                tridr: row.TARIF_IDR,
+                            }; 
+                        })
+                    };
+                }
+            }
+        });
+
+        let selectedMuatan = null; 
+        $('#JENIS_MUATAN_ID').on('select2:select', function (e) {
+            selectedMuatan = e.params.data;
+            updateTarif();
+            hitungBiaya();
+        });
+    
+        //START BERAT SETTING
+        //check sebelum entry
+        const PARAMS_WAJIB = [
+            { id: "CUSTOMER_ID", label: "Customer" },
+            { id: "ISIDR", label: "Jenis Pengiriman" },
+            { id: "JENIS_MUATAN_ID", label: "Jenis Muatan" }
+        ];
+
+        function getParamKurang() {
+            return PARAMS_WAJIB
+                .filter(f => {
+                let v = $("#" + f.id).val();
+                return !v || String(v).trim() === "";
+                })
+                .map(f => f.label);
+        }
+
+        function showToastErrorBerat(msg) {
+            $("#toast-msg").html(`<i class="fa-solid fa-circle-exclamation"></i> ${msg}`);
+            $("#liveToast")
+            .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+            .addClass("bg-warning");
+        new bootstrap.Toast(document.getElementById("liveToast"), { autohide: true, delay: 4000 }).show();
+        }
+
+        $("#BERAT_MUATAN").on("input", function () {
+            let missing = getParamKurang();
+            if (missing.length > 0) {
+                showToastErrorBerat("Kolom " + missing.join(", ") + " belum dipilih.");
+                $('#BERAT_MUATAN').val("");
+            }
+        });
+        //berat validasi input
+        $(function() {
+            const beratMuatan = document.getElementById("BERAT_MUATAN");
+
+            function stripNonNumeric(str) {
+                return str.replace(/[^0-9.]/g, "");
+            }
+
+            function formatWithCommas(str) {
+                let parts = str.split(".");
+                let intPart = parts[0] || "";
+                let decPart = parts[1] !== undefined ? "." + parts[1] : "";
+                return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + decPart;
+            }
+
+            function showToastErrorBerat(msg) {
+                $("#toast-msg").html(`<i class="fa-solid fa-circle-exclamation"></i> ${msg}`);
+                $("#liveToast")
+                    .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                    .addClass("bg-warning");
+                new bootstrap.Toast(document.getElementById("liveToast"), { autohide: true, delay: 3000 }).show();
+            }
+
+            beratMuatan.addEventListener("input", function(e) {
+                let rawAll = stripNonNumeric(this.value);
+
+                // hanya izinkan 1 titik
+                let firstDot = rawAll.indexOf(".");
+                if (firstDot !== -1) {
+                    rawAll = rawAll.slice(0, firstDot + 1) + rawAll.slice(firstDot + 1).replace(/\./g, "");
+                }
+
+                let parts = rawAll.split(".");
+                let intPart = parts[0] || "";
+                let decPart = parts[1] || "";
+
+                let changed = false;
+
+                // maksimal 7 digit sebelum koma
+                if (intPart.length > 7) {
+                    intPart = intPart.slice(0, 7);
+                    changed = true;
+                    showToastErrorBerat("Nilai Berat melebihi batas maksimal");
+                    hitungBiaya();
+                }
+
+                // maksimal 3 digit sesudah koma
+                if (decPart.length > 3) {
+                    decPart = decPart.slice(0, 3);
+                    changed = true;
+                    showToastErrorBerat("Maksimal 3 digit setelah koma");
+                }
+
+                let newVal = intPart + (parts.length > 1 ? "." + decPart : "");
+                this.value = formatWithCommas(newVal);
+
+                // biar kursor nggak lompat ke depan
+                if (changed) {
+                    let pos = this.value.length;
+                    this.setSelectionRange(pos, pos);
+                }
+            });
+
+            beratMuatan.addEventListener("blur", function() {
+                let num = parseFloat(stripNonNumeric(this.value));
+                if (!isNaN(num)) {
+                    this.value = num.toLocaleString("en-US", {
+                        minimumFractionDigits: 3,
+                        maximumFractionDigits: 3
+                    });
+                }
+            });
+        });
+        //berat validasi input
+        //END BERAT SETTING
+        //tarif = isidr vs jenismuatan
+        function formatNumberTarif(num, isUSD) {
+            if (num === null || num === undefined || num === "") return "";
+            let n = parseFloat(num);
+            if (isNaN(n)) return "";
+            if (isUSD) {
+                return n.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            } else {
+                return n.toLocaleString("en-US", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+            }
+        }
+
+        function updateTarif() {
+            if (!selectedMuatan) return;
+
+            let jenisPengiriman = $('#ISIDR').val();
+
+            if (jenisPengiriman == "2") {
+                    $('#TARIF_USD').val(formatNumberTarif(selectedMuatan.tarif, true));
+            } else if (jenisPengiriman == "3") {
+                $('#TARIF_USD').val(formatNumberTarif(selectedMuatan.tridr, false));
+            } else {
+                $('#TARIF_USD').val("");
+            }
+        }
+
+        //PERHITUNGAN
+        function cekParameterWajibLengkap() {
+            let required = [
+                { id: "CUSTOMER_ID", label: "Customer" },
+                { id: "ISIDR", label: "Jenis Pengiriman" },
+                { id: "JENIS_MUATAN_ID", label: "Jenis Muatan" }
+            ];
+
+            let missing = [];
+
+            required.forEach(r => {
+                let val = $("#" + r.id).val();
+                if (!val || val.trim() === "") {
+                    missing.push(r.label);
+                }
+            });
+
+            return {
+                lengkap: missing.length === 0,
+                missing: missing
+            };
+        }
+
+        function hitungBiaya() {
+            let check = cekParameterWajibLengkap();
+            if (!check.lengkap) {
+                return; // jangan hitung kalau belum lengkap
+            }
+            
+            let jenisPengiriman = $('#ISIDR').val();
+            let berat = parseFloat($('#BERAT_MUATAN').val().replace(/,/g, "")) || 0;
+            let tarif = parseFloat($('#TARIF_USD').val().replace(/,/g, "")) || 0;
+            let kurs = parseFloat($('#TRXKPJK').val().replace(/,/g, "")) || 0;
+            let ppnPersen = parseFloat($('#PPN_PERSEN').val().replace(/,/g, "")) || 0;
+
+            let nilaiPpa = 0;
+
+            if (jenisPengiriman == "3") {
+                nilaiPpa = berat * tarif;
+            } else if (jenisPengiriman == "2") {
+                nilaiPpa = berat * tarif * kurs;
+            }
+
+            nilaiPpa = Math.round(nilaiPpa);
+
+            let ppn = Math.round(nilaiPpa * (ppnPersen / 100));
+            let jumlah = nilaiPpa + ppn;
+
+            $("input[disabled][placeholder='Nilai PPA'], #NILAI_USD").val(
+                nilaiPpa.toLocaleString("en-US")
+            );
+            $("input[disabled][placeholder='PPN (IDR)'], #PPN").val(
+                ppn.toLocaleString("en-US")
+            );
+            $("input[disabled][placeholder='Jumlah (IDR)'], #TOTAL_USD").val(
+                jumlah.toLocaleString("en-US")
+            );
+        }
+
+        $('#BERAT_MUATAN, #JENIS_MUATAN_ID, #ISIDR').on('input change', function () {
+            hitungBiaya();
+        });
+
+
+        //mulai simpan
+    function validateFile(input) {
+        const file = input.files[0];
+        if (!file) return; // kalau tidak ada file, langsung keluar
+
+        const allowedType = "application/pdf";
+        const toastEl = document.getElementById('liveToast');
+
+        // Reset kelas background toast
+        $(toastEl).removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light");
+
+        if (file.type !== allowedType) {
+            // Kosongkan input
+            input.value = "";
+
+            // Set toast warning
+            $(toastEl).addClass("bg-warning");
+            $("#toast-msg").html(`<i class="fa-regular fa-bell me-1"></i> File harus PDF!`);
+
+            // Tampilkan toast 5 detik
+            let toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+            toast.show();
+        }
+    }
+
+    function simpanPpa(sttj) {
+        const form = $("#ppaForm");
+        const toastEl = document.getElementById('liveToast');
+        const $btnSimpan = $("#btnSimpan");
+        const $btnReset = $("#btnReset");
+
+        let emptyFields = [];
+        form.find("input[required], select[required], textarea[required]").each(function () {
+            let field = $(this);
+            let id = field.attr("id") || field.attr("name") || "Field";
+            let label = ($(`label[for='${id}']`).text() || id).replace(/\*|\(PDF\)|\(IDR\)|IDR/g, "").trim();
+
+            let isEmpty = false;
+            if (field.attr("type") === "file") {
+                isEmpty = !field[0].files || field[0].files.length === 0;
+            } else {
+                isEmpty = !field.val() || field.val().trim() === "";
+            }
+
+            if (isEmpty) emptyFields.push(label);
+        });
+
+        if (emptyFields.length > 0) {
+            let msg = "Kolom " + emptyFields.join(", ") + " belum diisi.";
+            $("#toast-msg").html(`<i class="fa-solid fa-circle-radiation"></i> ${msg}`);
+            $("#liveToast")
+            .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+            .addClass("bg-danger");
+            new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 }).show();
+            return;
+        }
+
+        $.ajax({
+            url: "<?php echo base_url('permohonan/simpanPpa'); ?>"+'/'+sttj,
+            type: "POST",
+            data: new FormData(form[0]),
+            contentType: false,
+            processData: false,
+            dataType: "json",
+            beforeSend: function () {
+                $btnSimpan.prop("disabled", true);
+                $btnReset.prop("disabled", true);
+            },
+            success: function (res) {
+                let icon = res.success
+                    ? '<i class="fa-solid fa-circle-check"></i>'
+                    : '<i class="fa-solid fa-circle-exclamation"></i>';
+
+                let msg = res.success
+                    ? `<b>Permohonan Nomor:</b> ${res.ppa_number}<br>${res.msg}`
+                    : res.msg;
+
+                $("#toast-msg").html(`${icon} ${msg}`)
+                .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                if (res.success) {
+                    if (res.warning == 0) {
+                        $("#liveToast").addClass("bg-success");
+                    } else if (res.warning == 1) {
+                        $("#liveToast").addClass("bg-warning");
+                    } else {
+                        $("#liveToast").addClass("bg-danger");
+                    }
+
+
+                    let toast = new bootstrap.Toast(toastEl, { autohide: false });
+                    toast.show();
+
+                    toastEl.addEventListener('hidden.bs.toast', function () {
+                        reloadForm()
+                    }, { once: true });
+                } else {
+                    $("#liveToast")
+                    .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                    .addClass("bg-danger");
+
+                    let toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+                    toast.show();
+
+                    $btnSimpan.prop("disabled", false);
+                    $btnReset.prop("disabled", false);
+                }
+            },
+            error: function (xhr, status, error) {
+                $("#toast-msg").html(`<i class="fa-regular fa-bell me-1"></i> Terjadi kesalahan: ${error}`);
+                $("#liveToast")
+                .removeClass("bg-success bg-danger bg-warning bg-info bg-primary bg-secondary bg-dark bg-light")
+                .addClass("bg-danger");
+
+                let toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+                toast.show();
+
+                $btnSimpan.prop("disabled", false);
+                $btnReset.prop("disabled", false);
+            },
+            
+        });
+    }
+
+    /*trash
+    window.aksiTombol = function(actionType = 0) {
+        const id = $("#ppaId").val();
+        simpanPpa();
+        let url;
+        switch (actionType){
+            case 1:
+            url = "<?= base_url('ppa_proses/kembalikan') ?>";
+            break;
+        case 2:
+            url = "<?= base_url('ppa_proses/terima') ?>";
+            break;
+        case 3:
+            url = "<?= base_url('ppa_proses/approve') ?>";
+            break;
+        default:
+            return;
+        }
+
+
+    }*/
+
+        $("#DRAFT, #SLIP, #SKAB").on("change", function() {
+            validateFile(this);
+        });
+
+
+        $("#btnSimpan").on("click", function(e) {
+            e.preventDefault();
+            simpanPpa(9);
+        });
+        
+        $("#btnTerima").on("click", function(e) {
+            e.preventDefault();
+            simpanPpa(0);
+        });
+        $("#btnApprove").on("click", function(e) {
+            e.preventDefault();
+            simpanPpa(1);
+        });
+
+        $("#btnKembali").on("click", function(e) {
+            e.preventDefault();
+            simpanPpa(8);
+        });
+
+        $("#btnBack").on("click", function(e) {
+            addTab('home/view_ppa_approve');
+        });
+
+
+        //handler reset manual
+        $("#btnReset").on("click", function(e) {
+            e.preventDefault();
+            reloadForm()
+        });
+
+        var isEdit = "<?= @$trxPpa['result']['ID']?>"; 
+        if (isEdit) {
+            $('#SKAB').removeAttr('required');
+            $('#SLIP').removeAttr('required');
+            $('#DRAFT').removeAttr('required');
+
+            var kapalId = "<?= @$trxPpa['result']['KAPAL_ID']?>"; 
+            if (kapalId) {
+                $.ajax({
+                    url: "<?php echo base_url('permohonan/kapalGetById');?>", 
+                    type: "GET",
+                    data: { id: kapalId },
+                    dataType: "json",
+                    success: function(row) {
+                        if (row) {
+                            var option = new Option(row.NAMA, row.ID, true, true);
+                            $('#KAPAL_ID').append(option).trigger('change');
+                            $('#GT_KAPAL').val(row.ISI_KOTOR);
+                        }
+                    }
+                });
+            }
+
+            var tongkangId = "<?= @$trxPpa['result']['TONGKANG_ID']?>"; 
+            if (tongkangId) {
+                $.ajax({
+                    url: "<?php echo base_url('permohonan/kapalGetById');?>", 
+                    type: "GET",
+                    data: { id: tongkangId },
+                    dataType: "json",
+                    success: function(row) {
+                        if (row) {
+                            var option = new Option(row.NAMA, row.ID, true, true);
+                            $('#TONGKANG_ID').append(option).trigger('change');
+                            $('#GT_TONGKANG').val(row.ISI_KOTOR);
+                        }
+                    }
+                });
+            }
+
+            var sifat = "<?= @$trxPpa['result']['SIFAT_KUNJUNGAN']?>";
+            if (sifat) {
+                $('#SIFAT_KUNJUNGAN').val(sifat).trigger('change');
+            }
+
+            var pelabuhanId = "<?= @$trxPpa['result']['PELABUHAN_ID']?>"; 
+            if (pelabuhanId) {
+                $.ajax({
+                    url: "<?php echo base_url('permohonan/pelabuhanGetById');?>", 
+                    type: "GET",
+                    data: { id: pelabuhanId },
+                    dataType: "json",
+                    success: function(row) {
+                        if (row) {
+                            var option = new Option(row.NAMA, row.ID, true, true);
+                            $('#PELABUHAN_ID').append(option).trigger('change');
+                        }
+                    }
+                });
+            }
+
+            var pelabuhanTujuanId = "<?= @$trxPpa['result']['PELABUHAN_TUJUAN_ID']?>"; 
+            if (pelabuhanTujuanId) {
+                $.ajax({
+                    url: "<?php echo base_url('permohonan/pelabuhanGetById');?>", 
+                    type: "GET",
+                    data: { id: pelabuhanTujuanId },
+                    dataType: "json",
+                    success: function(row) {
+                        if (row) {
+                            var option = new Option(row.NAMA, row.ID, true, true);
+                            $('#PELABUHAN_TUJUAN_ID').append(option).trigger('change');
+                        }
+                    }
+                });
+            }
+
+            var surveyorId = "<?= @$trxPpa['result']['SURVEYOR_ID']?>"; 
+            if (surveyorId) {
+                $.ajax({
+                    url: "<?php echo base_url('permohonan/surveyorGetById');?>", 
+                    type: "GET",
+                    data: { id: surveyorId },
+                    dataType: "json",
+                    success: function(row) {
+                        if (row) {
+                            var option = new Option(row.NAMA, row.ID, true, true);
+                            $('#SURVEYOR_ID').append(option).trigger('change');
+                        }
+                    }
+                });
+            }
+
+            let trxkpjk = <?= json_encode($trxkpjk) ?>;
+            trxkpjk = parseFloat(trxkpjk) || 0;
+            if (trxkpjk > 0) {
+                var isidrE = "<?= @$trxPpa['result']['ISIDR']?>"; 
+            }else{
+                var isidrE = "3";
+            }
+
+            var muatanId = "<?= @$trxPpa['result']['JENIS_MUATAN_ID']?>";
+            if (muatanId) {
+                $.ajax({
+                    url: "<?php echo base_url('permohonan/muatanGetById');?>", 
+                    type: "GET",
+                    data: { id: muatanId },
+                    dataType: "json",
+                    success: function(row) {
+                        if (row) {
+                            var option = new Option(row.NAMA, row.ID, true, true);
+                            $('#JENIS_MUATAN_ID').append(option).trigger('change');
+                            if(isidrE==3){
+                                $('#TARIF_USD').val(formatNumberTarif(row.TARIF_IDR));
+                            }else if(isidrE==2){
+                                $('#TARIF_USD').val(row.TARIF);
+                            }
+                            $('#ISIDR').val(isidrE).trigger('change');
+                            updateTarif();
+                            hitungBiaya();
+                        }
+                    },
+                    
+                });
+            }
+
+        } else {
+            $('#SKAB').attr('required', true);
+            $('#SLIP').attr('required', true);
+            $('#DRAFT').attr('required', true);
+        }
+
+
+        
+    });
+</script>
+
